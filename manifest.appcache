@@ -1,4 +1,6 @@
 CACHE MANIFEST
-
-FALLBACK:
+CACHE:
 index.html
+NETWORK: 
+notifs.txt
+

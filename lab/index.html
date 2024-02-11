@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html manifest="manifest.appcache">
+<head>
 <meta http-equiv="refresh" content="3600"><!--8640-->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -42,6 +43,8 @@
     }
     .cover{position:fixed;top:0;left:0;right:0;bottom:0;}
 </style>
+</head>
+<body>
 <div hidden class="cover" style="background-color: rgba(0,0,0,.5);z-index: -1;"></div>
 <h1 id="time">00:00</h1>
 <h1 id="day">Jours</h1>
@@ -50,8 +53,25 @@
 <h1 class="notif" id="notif_net"></h1>
 <div class="cover" id="stderr" style="opacity: .2;"></div>
 <script>
+
+    // Returns the ISO week of the current date.
+    // https://weeknumber.com/how-to/javascript
+    Date.prototype.getWeek = function() {
+        var date = new Date(this.getTime());
+        date.setHours(0, 0, 0, 0);
+
+        // Thursday/Jeudi in current week decides the year.
+        date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+
+        // January 4th is always in week #1.
+        var week1 = new Date(date.getFullYear(), 0, 4);
+
+        // Adjust to Thursday in week 1 and count number of weeks from date to week1.
+        return 1 + Math.round( (((date.getTime() - week1.getTime()) / 86400000) - 3 + (week1.getDay() + 6) % 7) / 7);
+    }
+
     var days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    var months = ['Janv.', 'Fev.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout'];
+    var months = ['Janv.', 'Fev.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Aout', 'Sept.', 'Oct.', 'Nov.', 'Dec.'];
     function renderDate() {
         var d = new Date();
         time.innerText = ('0'+d.getHours()).slice(-2) + (d.getSeconds()&1?' ':':') + ('0'+d.getMinutes()).slice(-2);
@@ -68,8 +88,11 @@
         if (retry > 10) {
             notif_sys.innerText="Internet en panne: Appeler Jean"
         }
-        if ((new Date()).getDay() === 0) {
-            notif_sys.innerText="Sortir poubelles";
+        var now = new Date();
+        if (now.getDay() === 0) { // tous les dimanches
+            notif_sys.innerText="Sortir poubelle VERTE";
+        }else if ((now.getDay() === 3) && ((now.getWeek() % 2) === 1)) { // mercredi des semaines impaires
+            notif_sys.innerText="Sortir poubelle JAUNE";
         }
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
@@ -82,5 +105,15 @@
         xhttp.send();
     }
     getnotif();
-    setInterval(getnotif, 60*60*1000);
+    setInterval(getnotif, 19*60*1000); // 19 min, to shift around the clock.
+
+    function tracking() {
+        var newImage = new Image();
+        newImage.src = "https://sstatic1.histats.com/0.gif?4844069&" + Math.random(); // cache breaker 
+    }
+    tracking();
+    setInterval(tracking, 31*60*1000); // 31 min
+
 </script>
+</body>
+</html>

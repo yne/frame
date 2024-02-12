@@ -8,7 +8,7 @@
     html {
         background-color:black;
         background-size: cover;
-        /*background-image: url('http://nik.bot.nu/t3154653.jpg');*/
+        /* background-image: url('http://nik.bot.nu/t3154653.jpg'); */
         color:white;
         height: 100%;
         text-shadow: 0 0 5px black, 0 0 15px black, 0 0 25px black;
@@ -42,6 +42,7 @@
         overflow: hidden;
     }
     .cover{position:fixed;top:0;left:0;right:0;bottom:0;}
+
 </style>
 </head>
 <body>
@@ -70,11 +71,14 @@
         return 1 + Math.round( (((date.getTime() - week1.getTime()) / 86400000) - 3 + (week1.getDay() + 6) % 7) / 7);
     }
 
+    var isNight= false;
     var days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     var months = ['Janv.', 'Fev.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Aout', 'Sept.', 'Oct.', 'Nov.', 'Dec.'];
     function renderDate() {
         var d = new Date();
-        time.innerText = ('0'+d.getHours()).slice(-2) + (d.getSeconds()&1?' ':':') + ('0'+d.getMinutes()).slice(-2);
+        var h = d.getHours();
+        night = 8>h && h>=22;
+        time.innerText = ('0'+h).slice(-2) + (d.getSeconds()&1?' ':':') + ('0'+d.getMinutes()).slice(-2);
         day.innerText = days[d.getDay()];
         date.innerText =  d.getDate() + ' ' + months[d.getMonth()] + " " + d.getFullYear();
         notif_sys.hidden = !notif_sys.innerText;
@@ -82,6 +86,69 @@
     }
     renderDate();
     setInterval(renderDate, 1000);
+
+    var notifs = [];
+    var idx = 0;
+    var body = document.getElementsByTagName("body")[0];
+    var call_re = /^#\s*(\w+)\((.*)\)$/;
+
+    // Cette fonction detecte 4 types de ligne:
+    //  ""                 -> ligne vide: ignorer
+    //  "# commentaire"    -> ligne de commentaire: ignorer
+    //  "# func(param)"    -> appel d'une fonction: execution
+    //  "texte a afficher" -> retourner le texte
+    function getNextNotif() {
+         var line = notifs[idx].trim();
+
+         if (line.length == 0) {
+             // une ligne vide, on l'ignore
+             return '';
+         }
+
+         if (! line.startsWith('#')) {
+             // une message a afficher
+             return line;
+         }
+
+         var call = line.match(call_re);
+         if ( (call === null) || (call.length != 3) ){
+             // un commentaire
+             return '';
+         }
+
+         // un appel de fonction
+         var do_call = "do_" + call[1].toLowerCase() + "(" + call[2] + ")";
+         try {
+             eval(do_call)
+         } catch (err) {
+             console.log("Failed to execute: " + do_call + "\n" + err)
+         }
+         return '';
+    }
+
+    function showNextNotif() {
+        var cnt = notifs.length;
+        if (cnt==0) return '(aucun message)';
+        console.log("------------- @" + (idx+1));
+        var init = idx;
+        do {
+            var msg = getNextNotif();
+            idx = (idx + 1) % cnt;
+            if( msg.length > 0 ){
+                notif_net.innerText = msg;
+                console.log("Message '" + msg + "'");
+                break;
+            }else if( idx == init ){
+                notif_net.innerText = '...';
+                console.log("Message de temporisation");
+                break;
+            }
+            console.log("Ignore line " + idx);
+        } while (true);
+        // body.style.color = isNight ? 'blue' : 'white';
+    }
+    showNextNotif();
+    setInterval(showNextNotif, 10*1000); // 10 secondes
 
     var retry = 0;
     function getnotif() {
@@ -97,8 +164,15 @@
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
             if (this.readyState == 4) {
-                retry = this.status == 200 ? 0 : retry + 1;
-                if(this.status == 200) notif_net.innerText = this.responseText;
+                if(this.status == 200){
+                    idx = 0;
+                    notifs = (this.responseText).split("\n");
+                    // tracking
+                    var newImage = new Image();
+                    newImage.src = "https://sstatic1.histats.com/0.gif?4844069&" + Math.random(); // cache breaker
+                }else{
+                    retry++;
+                }
             }
         }
         xhttp.open("GET", "notifs.txt", true);
@@ -107,12 +181,68 @@
     getnotif();
     setInterval(getnotif, 19*60*1000); // 19 min, to shift around the clock.
 
-    function tracking() {
-        var newImage = new Image();
-        newImage.src = "https://sstatic1.histats.com/0.gif?4844069&" + Math.random(); // cache breaker 
+    //////// gestion look & feel
+
+    function do_textcolor(color){
+        if( ! isNight ){
+            body.style.color = color;
+            console.log("Set textcolor to " + color);
+        }
     }
-    tracking();
-    setInterval(tracking, 31*60*1000); // 31 min
+
+    //////// gestion des messages
+
+    // ne peut fonctionne pas comme voulu car il n'y a pas de pause
+    function do_message(msg, color){
+        if( ! isNight ){
+            if( color.length > 0 )
+                body.style.color = color;
+            notif_net.innerText = msg;
+            console.log("Display Message " + msg);
+        }
+    }
+
+    //////// gestion image
+
+    function do_playsound(url){
+        if( ! isNight ){
+            // IMPORTANT: necessite l'autorisation de 'auto play'
+            // pendant ce temps les notifs texte continuent normalement
+            audio = new Audio(url);
+            audio.play();
+            console.log("Play sound at " + url);
+        }
+    }
+
+    //////// gestion image
+
+    function do_displayimage(url){
+        if( ! isNight ){
+            // TBD
+            // Afficher l'image soit en plein ecran, soit a la place du calendrier
+            // Soit au prochain message on supprime l'image
+            // Soit faire une fonction do_clearimage() ou displaycalendar()
+            console.log("Display image at " + url + " NOT IMPLEMENTED");
+        }
+    }
+
+    function do_setbackground(url){
+        // url pointe sur une image (dans google photo par example)
+        if( ! isNight ){
+            // TBD
+            console.log("Set background to " + url + "NOT IMPLEMENTED");
+        }
+    }
+
+    function do_slideshow(url){
+        // url pointe sur une playlist (fichier texte) d'image (dans google doc ?)
+        // on met en cache cette liste pour xx heures ou jusqu'a une url differente
+        // a chaque execution on prend l'une des photos (suivante ou au hazard)
+        if( ! isNight ){
+            // TBD
+            console.log("Set background to " + url + "NOT IMPLEMENTED");
+        }
+    }
 
 </script>
 </body>

@@ -1,1 +1,14 @@
-C'est le re-debut
+Hi, Bonjour !
+
+# PlaySound('https://download.samplelib.com/mp3/sample-15s.mp3')
+En musique...
+
+# DisplayImage('http://nik.bot.nu/t3154653.jpg')
+
+# TextColor('green')
+Du green waching...
+
+## Message("La vie en rose", 'pink')
+
+# TextColor('white')
+Fin

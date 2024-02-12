@@ -1,14 +1,17 @@
+# Reset delais d'affichage d'un message
+# DurationByMessage(0)
 Hi, Bonjour !
 
-# PlaySound('https://download.samplelib.com/mp3/sample-15s.mp3')
+## PlaySound('https://download.samplelib.com/mp3/sample-15s.mp3')
+
+# On accelère le rythme
+# DurationByMessage(2)
 En musique...
 
 # DisplayImage('http://nik.bot.nu/t3154653.jpg')
 
-# TextColor('green')
+# TextColors('green', 'red')
 Du green waching...
 
-## Message("La vie en rose", 'pink')
-
-# TextColor('white')
+# TextColors('white')
 Fin

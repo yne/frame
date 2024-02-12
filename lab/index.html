@@ -71,13 +71,25 @@
         return 1 + Math.round( (((date.getTime() - week1.getTime()) / 86400000) - 3 + (week1.getDay() + 6) % 7) / 7);
     }
 
-    var isNight= false;
+    // parametres de configurations par defaut: def_xxxxx
+    var def_dayTextColor      = 'white';
+    var def_nightTextColor    = 'blue';
+    var def_durationByMessage = 11; // sec
+    var def_refreshNotifs     = 19; // min
+
+    // parametres de configurations cfg_xxxx (modifiable via les notifs)
+    var cfg_dayTextColor      = def_dayTextColor;
+    var cfg_nightTextColor    = def_nightTextColor;
+    var cfg_durationByMessage = def_durationByMessage;
+    var cfg_refreshNotifs     = def_refreshNotifs;
+
+    var isNight = false;
     var days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     var months = ['Janv.', 'Fev.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Aout', 'Sept.', 'Oct.', 'Nov.', 'Dec.'];
     function renderDate() {
         var d = new Date();
         var h = d.getHours();
-        night = 8>h && h>=22;
+        isNight = (8>h) || (h>=20);
         time.innerText = ('0'+h).slice(-2) + (d.getSeconds()&1?' ':':') + ('0'+d.getMinutes()).slice(-2);
         day.innerText = days[d.getDay()];
         date.innerText =  d.getDate() + ' ' + months[d.getMonth()] + " " + d.getFullYear();
@@ -88,15 +100,15 @@
     setInterval(renderDate, 1000);
 
     var notifs = [];
-    var idx = 0;
+    var idx  = 0;
     var body = document.getElementsByTagName("body")[0];
     var call_re = /^#\s*(\w+)\((.*)\)$/;
 
     // Cette fonction detecte 4 types de ligne:
     //  ""                 -> ligne vide: ignorer
     //  "# commentaire"    -> ligne de commentaire: ignorer
-    //  "# func(param)"    -> appel d'une fonction: execution
-    //  "texte a afficher" -> retourner le texte
+    //  "# func(param)"    -> appel d'une fonction: executer
+    //  "texte a afficher" -> message a afficher: retourner le texte
     function getNextNotif() {
          var line = notifs[idx].trim();
 
@@ -145,13 +157,12 @@
             }
             console.log("Ignore line " + idx);
         } while (true);
-        // body.style.color = isNight ? 'blue' : 'white';
+        body.style.color = isNight ? cfg_nightTextColor : cfg_dayTextColor;
     }
-    showNextNotif();
-    setInterval(showNextNotif, 10*1000); // 10 secondes
+    var id_showNextNotif = setInterval(showNextNotif, cfg_durationByMessage*1000);
 
     var retry = 0;
-    function getnotif() {
+    function getNotifs() {
         if (retry > 10) {
             notif_sys.innerText="Internet en panne: Appeler Jean"
         }
@@ -178,16 +189,18 @@
         xhttp.open("GET", "notifs.txt", true);
         xhttp.send();
     }
-    getnotif();
-    setInterval(getnotif, 19*60*1000); // 19 min, to shift around the clock.
+    var id_getNotifs = setInterval(getNotifs, cfg_refreshNotifs*60*1000);
+
+    // first run
+    getNotifs();
+    setTimeout( function () {showNextNotif()}, 3*1000);
 
     //////// gestion look & feel
 
-    function do_textcolor(color){
-        if( ! isNight ){
-            body.style.color = color;
-            console.log("Set textcolor to " + color);
-        }
+    function do_textcolors(dayColor, nightColor){
+        cfg_dayTextColor = dayColor;
+        cfg_nightTextColor = nightColor ? nightColor : def_nightTextColor;
+        console.log("Set textcolors to day=" + cfg_dayTextColor + ", night=" + cfg_nightTextColor);
     }
 
     //////// gestion des messages
@@ -200,6 +213,20 @@
             notif_net.innerText = msg;
             console.log("Display Message " + msg);
         }
+    }
+
+    function do_refreshmessages(delais=0){
+        clearInterval(id_getNotifs);
+        cfg_refreshNotifs = delais > 0 ? delais : def_refreshNotifs;
+        id_getNotifs = setInterval(getNotifs, cfg_refreshNotifs*60*1000);
+        console.log("Refresh Messages every " + cfg_refreshNotifs + "min");
+    }
+
+    function do_durationbymessage(delais=0){
+        clearInterval(id_showNextNotif);
+        cfg_durationByMessage = delais > 0 ? delais : def_durationByMessage;
+        id_showNextNotif = setInterval(showNextNotif, cfg_durationByMessage*1000);
+        console.log("Duration By Message: " + cfg_durationByMessage + "s");
     }
 
     //////// gestion image

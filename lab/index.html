@@ -96,23 +96,22 @@
       cfg[key] = def[key];
     console.log("Configuration: " + cfg);
 
-    class ColorsSaver {
-        constructor() {
-          this.saved = false;
-        }
-        save() {
-            this.dayColor   = cfg['dayTextColor'];
-            this.nightColor = cfg['nightTextColor'];
-            this.saved = true;
-        }
-        restore() {
-            if (! this.saved) return;
-            cfg['dayTextColor']   = this.dayColor;
-            cfg['nightTextColor'] = this.nightColor;
-            this.saved = false;
-        }
+    // gestion des sauvegarde/restoration des couleurs
+    // ceci permet de derorger aux couleurs par defaut le temps d'un message
+    var colorsBackup = { saved : false };
+
+    function saveColors() {
+        for (var color of ['dayTextColor', 'nightTextColor'])
+            colorsBackup[color] = cfg[color];
+        colorsBackup['saved'] = true;
     }
-    var savedColors = new ColorsSaver();
+
+    function restoreColors() {
+        if (! colorsBackup['saved']) return;
+        for (var color in ['dayTextColor', 'nightTextColor'])
+            cfg[color] = colorsBackup[color];
+        colorsBackup['saved'] = false;
+    }
 
     ////////////////////////////////////////
 
@@ -138,7 +137,7 @@
     var idx  = 0;
     var audioRunning = false;
     var localColors  = false;
-    var call_re = /^#\s*(\w+)\((.*)\)$/;
+    var call_re = /^#\s*(\w+)\((.*)\)\s*;?\s*$/;
 
     // Cette fonction detecte 4 types de ligne:
     //  ""                 -> ligne vide: ignorer
@@ -174,7 +173,7 @@
         var results = msg.match(msg_re);
         if ( (results === null) || (results.length != 4) ) return msg;
         //TODO sauver les couleurs actuelles
-        savedColors.save();
+        saveColors();
         cfg['dayTextColor']   = results[1];
         cfg['nightTextColor'] = results[2];
         return results[3];
@@ -184,7 +183,7 @@
         var cnt = notifs.length;
         if (cnt==0) return;
         if (audioRunning) return;  // TODO: ajouter un . au message actuelle a chaque fois
-        savedColors.restore();
+        restoreColors();
         console.log("------------- @" + (idx+1));
         var init = idx;
         do {
@@ -301,6 +300,22 @@
 
     //////// gestion image
 
+    function do_background(url) {
+        // if (isNight) return;
+        pic.style.backgroundImage  = 'url(' + url + ')';
+        pic.style.backgroundSize     = 'contain';
+        pic.style.backgroundRepeat   = 'no-repeat';
+        pic.style.backgroundPosition = 'center';
+        pic.hidden = false;
+        console.log("Set background to " + url);
+    }
+
+    function do_nobackground(){
+        pic.hidden = false;
+        pic.style.backgroundImage  = '';
+        console.log("No background");
+    }
+
     function do_displayimage(url) {
         if (isNight) return;
         // TODO
@@ -308,17 +323,6 @@
         // Soit au prochain message on supprime l'image
         // Soit faire une fonction do_clearimage() ou displaycalendar()
         console.log("Display image at " + url + " NOT IMPLEMENTED");
-    }
-
-    function do_background(url) {
-        // if (isNight) return;
-        pic.style.backgroundImage  = 'url(' + url + ')'; 
-        pic.style.backgroundSize     = 'contain';
-        pic.style.backgroundRepeat   = 'no-repeat';
-        pic.style.backgroundPosition = 'center';
-        pic.hidden = false;
-        console.log("Set background to " + url + "NOT IMPLEMENTED");
-        
     }
 
     function do_slideshow(url) {

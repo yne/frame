@@ -71,17 +71,30 @@
         return 1 + Math.round( (((date.getTime() - week1.getTime()) / 86400000) - 3 + (week1.getDay() + 6) % 7) / 7);
     }
 
-    // parametres de configurations par defaut: def_xxxxx
-    var def_dayTextColor      = 'white';
-    var def_nightTextColor    = 'blue';
-    var def_durationByMessage = 11; // sec
-    var def_refreshNotifs     = 19; // min
+    // valeurs par defaut des variables configurables
+    var def = {
+        dayTextColor      : 'white',
+        nightTextColor    : 'blue',
+        durationByMessage : 16,           // secondes
+        refreshNotifs     : 19,           // minutes
+        urlNotifs         : 'notifs.txt'
+    };
 
-    // parametres de configurations cfg_xxxx (modifiable via les notifs)
-    var cfg_dayTextColor      = def_dayTextColor;
-    var cfg_nightTextColor    = def_nightTextColor;
-    var cfg_durationByMessage = def_durationByMessage;
-    var cfg_refreshNotifs     = def_refreshNotifs;
+    // eventuelle redefinition de valeurs par defaut via l'url
+    var urlParams = new URLSearchParams(window.location.search);
+    for (var key of Object.keys(def)) {
+        var val = urlParams.get(key);
+        if( val ) def[key] = val;
+    }
+
+    // creation & initialisation de toutes les variables de configuration
+    // Note: pour ajouter un variable sujette a configuration l'ajouter dans def[]
+    var cfg = {};
+    for (var key in def)
+      cfg[key] = def[key];
+    console.log("Configuration: " + cfg);
+
+    ////////////////////////////////////////
 
     var isNight = false;
     var days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -101,6 +114,7 @@
 
     var notifs = [];
     var idx  = 0;
+    var audioRunning = false;
     var body = document.getElementsByTagName("body")[0];
     var call_re = /^#\s*(\w+)\((.*)\)$/;
 
@@ -124,11 +138,11 @@
 
          var call = line.match(call_re);
          if ( (call === null) || (call.length != 3) ){
-             // un commentaire
+             // un commentaire, on l'ignore
              return '';
          }
 
-         // un appel de fonction
+         // un appel de fonction, on l'execute
          var do_call = "do_" + call[1].toLowerCase() + "(" + call[2] + ")";
          try {
              eval(do_call)
@@ -140,10 +154,12 @@
 
     function showNextNotif() {
         var cnt = notifs.length;
-        if (cnt==0) return '(aucun message)';
+        if (cnt==0) return;
+        if (audioRunning) return;
         console.log("------------- @" + (idx+1));
         var init = idx;
         do {
+            if (idx==0) do_reset();
             var msg = getNextNotif();
             idx = (idx + 1) % cnt;
             if( msg.length > 0 ){
@@ -155,23 +171,28 @@
                 console.log("Message de temporisation");
                 break;
             }
-            console.log("Ignore line " + idx);
         } while (true);
-        body.style.color = isNight ? cfg_nightTextColor : cfg_dayTextColor;
+        body.style.color = isNight ? cfg['nightTextColor'] : cfg['dayTextColor'];
     }
-    var id_showNextNotif = setInterval(showNextNotif, cfg_durationByMessage*1000);
+    var id_showNextNotif = setInterval(showNextNotif, cfg['durationByMessage']*1000);
 
     var retry = 0;
     function getNotifs() {
         if (retry > 10) {
             notif_sys.innerText="Internet en panne: Appeler Jean"
         }
+
+        //FIXME pourquoi c'est dans getNotifs() et pas dans showNextNotif() ?
+        //      ou faire un process pour les evenements de l'agenda
         var now = new Date();
         if (now.getDay() === 0) { // tous les dimanches
             notif_sys.innerText="Sortir poubelle VERTE";
         }else if ((now.getDay() === 3) && ((now.getWeek() % 2) === 1)) { // mercredi des semaines impaires
             notif_sys.innerText="Sortir poubelle JAUNE";
-        }
+        }else if ((now.getDay() === 4) && (now.getHours() < 15)) { // tous les jeudi matin
+            notif_sys.innerText="Samia à 14h";
+        }        
+
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
             if (this.readyState == 4) {
@@ -186,10 +207,10 @@
                 }
             }
         }
-        xhttp.open("GET", "notifs.txt", true);
+        xhttp.open("GET", cfg['urlNotifs'], true);
         xhttp.send();
     }
-    var id_getNotifs = setInterval(getNotifs, cfg_refreshNotifs*60*1000);
+    var id_getNotifs = setInterval(getNotifs, cfg['refreshNotifs']*60*1000);
 
     // first run
     getNotifs();
@@ -197,78 +218,93 @@
 
     //////// gestion look & feel
 
+    function do_reset() {
+        for (var key in def)
+            if (key != 'refreshNotifs') cfg[key] = def[key];
+        do_durationbymessage();
+        // FIXME: refreshNotifs n'est pas re-initialisé et donc do_refreshmessages() n'est pas appelé
+        // Pour etre propre il faudrait faire 2 groupes
+        // les variables resetables, et les variables non resetables
+        console.log("Reset to default (excepted refreshNotifs)");
+    }
+
     function do_textcolors(dayColor, nightColor){
-        cfg_dayTextColor = dayColor;
-        cfg_nightTextColor = nightColor ? nightColor : def_nightTextColor;
-        console.log("Set textcolors to day=" + cfg_dayTextColor + ", night=" + cfg_nightTextColor);
+        cfg['dayTextColor'] = dayColor;
+        cfg['nightTextColor'] = nightColor ? nightColor : def['nightTextColor'];
+        console.log("Set textcolors to day=" + cfg['dayTextColor'] + ", night=" + cfg['nightTextColor']);
     }
 
     //////// gestion des messages
 
-    // ne peut fonctionne pas comme voulu car il n'y a pas de pause
-    function do_message(msg, color){
-        if( ! isNight ){
-            if( color.length > 0 )
-                body.style.color = color;
-            notif_net.innerText = msg;
-            console.log("Display Message " + msg);
-        }
-    }
+    // ne fonctionne pas comme voulu car il n'y a pas de pause
+    // A remplacer par des messages au format "[text/back] message"
+    // function do_message(msg, color){
+    //    if( ! isNight ){
+    //        if( color.length > 0 )
+    //            body.style.color = color;
+    //        notif_net.innerText = msg;
+    //        console.log("Display Message " + msg);
+    //    }
+    // }
 
-    function do_refreshmessages(delais=0){
+    function do_refreshmessages(delais_m=0){
         clearInterval(id_getNotifs);
-        cfg_refreshNotifs = delais > 0 ? delais : def_refreshNotifs;
-        id_getNotifs = setInterval(getNotifs, cfg_refreshNotifs*60*1000);
-        console.log("Refresh Messages every " + cfg_refreshNotifs + "min");
+        cfg['refreshNotifs'] = delais_m ==  0 ? def['refreshNotifs']  // reset
+                             : delais_m  < 15 ? 15                    // min 15 minutes
+                                              : delais_m;
+        id_getNotifs = setInterval(getNotifs, cfg['refreshNotifs']*60*1000);
+        console.log("Refresh list of messages every " + cfg['refreshNotifs'] + "min");
     }
 
-    function do_durationbymessage(delais=0){
+    function do_durationbymessage(delais_s=0){
         clearInterval(id_showNextNotif);
-        cfg_durationByMessage = delais > 0 ? delais : def_durationByMessage;
-        id_showNextNotif = setInterval(showNextNotif, cfg_durationByMessage*1000);
-        console.log("Duration By Message: " + cfg_durationByMessage + "s");
+        cfg['durationByMessage'] = delais_s ==  0 ? def['durationByMessage']  // reset
+                                 : delais_s  <  2 ? 2                         // min 15 secondes  (2 pour les TESTS)
+                                                  : delais_s;
+        id_showNextNotif = setInterval(showNextNotif, cfg['durationByMessage']*1000);
+        console.log("Duration By Message: " + cfg['durationByMessage'] + "s");
     }
 
-    //////// gestion image
+    //////// gestion son
 
     function do_playsound(url){
-        if( ! isNight ){
-            // IMPORTANT: necessite l'autorisation de 'auto play'
-            // pendant ce temps les notifs texte continuent normalement
-            audio = new Audio(url);
-            audio.play();
-            console.log("Play sound at " + url);
+    //    if (isNight) return;
+        // IMPORTANT: necessite l'autorisation de 'auto play'
+        // pendant ce temps les notifs texte continuent normalement
+        console.log("Playing sound at " + url);
+        audio = new Audio(url);
+        audio.onended = (event) => {
+            console.log("Audio stopped.");
+            audioRunning = false;
         }
+        audio.play();
+        audioRunning = true;
     }
 
     //////// gestion image
 
     function do_displayimage(url){
-        if( ! isNight ){
-            // TBD
-            // Afficher l'image soit en plein ecran, soit a la place du calendrier
-            // Soit au prochain message on supprime l'image
-            // Soit faire une fonction do_clearimage() ou displaycalendar()
-            console.log("Display image at " + url + " NOT IMPLEMENTED");
-        }
+        if (isNight) return;
+        // TODO
+        // Afficher l'image soit en plein ecran, soit a la place du calendrier
+        // Soit au prochain message on supprime l'image
+        // Soit faire une fonction do_clearimage() ou displaycalendar()
+        console.log("Display image at " + url + " NOT IMPLEMENTED");
     }
 
     function do_setbackground(url){
-        // url pointe sur une image (dans google photo par example)
-        if( ! isNight ){
-            // TBD
-            console.log("Set background to " + url + "NOT IMPLEMENTED");
-        }
+        if (isNight) return;
+        // TODO: url pointe sur une image (dans google photo par example)
+        //       la mettre en fond d'ecran
+        console.log("Set background to " + url + "NOT IMPLEMENTED");
     }
 
     function do_slideshow(url){
-        // url pointe sur une playlist (fichier texte) d'image (dans google doc ?)
+        if( isNight ) return;
+        // TODO: url pointe sur une playlist (fichier texte) d'image (dans google doc ?)
         // on met en cache cette liste pour xx heures ou jusqu'a une url differente
         // a chaque execution on prend l'une des photos (suivante ou au hazard)
-        if( ! isNight ){
-            // TBD
-            console.log("Set background to " + url + "NOT IMPLEMENTED");
-        }
+        console.log("Display next image from " + url + "NOT IMPLEMENTED");
     }
 
 </script>

@@ -1,17 +1,24 @@
-# Reset delais d'affichage d'un message
-# DurationByMessage(0)
 Hi, Bonjour !
 
-## PlaySound('https://download.samplelib.com/mp3/sample-15s.mp3')
+### PlaySound('https://download.samplelib.com/mp3/sample-15s.mp3')
+### PlaySound('https://soundbible.com/grab.php?id=91&type=mp3')
+
+# PlaySound('https://universal-soundbank.com/sounds/12002.mp3')
+Depuis la lune ...
 
 # On accelère le rythme
-# DurationByMessage(2)
-En musique...
+# DurationByMessage(3)
 
 # DisplayImage('http://nik.bot.nu/t3154653.jpg')
 
-# TextColors('green', 'red')
-Du green waching...
+# TextColors('lime', 'green')
+Du green waching
+
+# TextColors('yellow', 'darkorange')
+Yellow submarine
+
+# TextColors('blue', 'navy')
+The Bluest Blues
 
 # TextColors('white')
 Fin

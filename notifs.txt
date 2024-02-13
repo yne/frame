@@ -4,15 +4,17 @@ Hi, Bonjour !
 ### PlaySound('https://soundbible.com/grab.php?id=91&type=mp3')
 
 # PlaySound('https://universal-soundbank.com/sounds/12002.mp3')
-Depuis la lune ...
+[red/yellow] Depuis la lune ...
 
 # On accelère le rythme
 # DurationByMessage(3)
 
 # DisplayImage('http://nik.bot.nu/t3154653.jpg')
+retour sur terre
 
 # TextColors('lime', 'green')
 Du green waching
+et encore du green
 
 # TextColors('yellow', 'darkorange')
 Yellow submarine

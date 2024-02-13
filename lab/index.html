@@ -74,7 +74,9 @@
     // valeurs par defaut des variables configurables
     var def = {
         dayTextColor      : 'white',
+        dayBgColor        : 'black',
         nightTextColor    : 'blue',
+        nightBgColor      : 'black',
         durationByMessage : 16,           // secondes
         refreshNotifs     : 19,           // minutes
         urlNotifs         : 'notifs.txt'
@@ -93,6 +95,24 @@
     for (var key in def)
       cfg[key] = def[key];
     console.log("Configuration: " + cfg);
+
+    class ColorsSaver {
+        constructor() {
+          this.saved = false;
+        }
+        save() {
+            this.dayColor   = cfg['dayTextColor'];
+            this.nightColor = cfg['nightTextColor'];
+            this.saved = true;
+        }
+        restore() {
+            if (! this.saved) return;
+            cfg['dayTextColor']   = this.dayColor;
+            cfg['nightTextColor'] = this.nightColor;
+            this.saved = false;
+        }
+    }
+    var savedColors = new ColorsSaver();
 
     ////////////////////////////////////////
 
@@ -115,6 +135,7 @@
     var notifs = [];
     var idx  = 0;
     var audioRunning = false;
+    var localColors  = false;
     var body = document.getElementsByTagName("body")[0];
     var call_re = /^#\s*(\w+)\((.*)\)$/;
 
@@ -126,21 +147,15 @@
     function getNextNotif() {
          var line = notifs[idx].trim();
 
-         if (line.length == 0) {
-             // une ligne vide, on l'ignore
-             return '';
-         }
+         if (line.length == 0)
+             return '';  // une ligne vide, on l'ignore
 
-         if (! line.startsWith('#')) {
-             // une message a afficher
-             return line;
-         }
+         if (! line.startsWith('#'))
+             return line;  // une message a afficher
 
          var call = line.match(call_re);
-         if ( (call === null) || (call.length != 3) ){
-             // un commentaire, on l'ignore
-             return '';
-         }
+         if ( (call === null) || (call.length != 3) )
+             return '';  // un commentaire, on l'ignore
 
          // un appel de fonction, on l'execute
          var do_call = "do_" + call[1].toLowerCase() + "(" + call[2] + ")";
@@ -152,10 +167,23 @@
          return '';
     }
 
+    // detecte et applique le format "[day-color/night-color] message"
+    var msg_re = /^\[\s*([\w#]+)\s*\/\s*([\w#]+)\s*\]\s*(.*)$/
+    function parseMessage(msg) {
+        var results = msg.match(msg_re);
+        if ( (results === null) || (results.length != 4) ) return msg;
+        //TODO sauver les couleurs actuelles
+        savedColors.save();
+        cfg['dayTextColor']   = results[1];
+        cfg['nightTextColor'] = results[2];
+        return results[3];
+    }
+
     function showNextNotif() {
         var cnt = notifs.length;
         if (cnt==0) return;
-        if (audioRunning) return;
+        if (audioRunning) return;  // TODO: ajouter un . au message actuelle a chaque fois
+        savedColors.restore();
         console.log("------------- @" + (idx+1));
         var init = idx;
         do {
@@ -163,7 +191,7 @@
             var msg = getNextNotif();
             idx = (idx + 1) % cnt;
             if( msg.length > 0 ){
-                notif_net.innerText = msg;
+                notif_net.innerText = parseMessage(msg);
                 console.log("Message '" + msg + "'");
                 break;
             }else if( idx == init ){
@@ -172,7 +200,7 @@
                 break;
             }
         } while (true);
-        body.style.color = isNight ? cfg['nightTextColor'] : cfg['dayTextColor'];
+        notif_net.style.color = isNight ? cfg['nightTextColor'] : cfg['dayTextColor'];
     }
     var id_showNextNotif = setInterval(showNextNotif, cfg['durationByMessage']*1000);
 
@@ -191,7 +219,7 @@
             notif_sys.innerText="Sortir poubelle JAUNE";
         }else if ((now.getDay() === 4) && (now.getHours() < 15)) { // tous les jeudi matin
             notif_sys.innerText="Samia à 14h";
-        }        
+        }
 
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
@@ -231,21 +259,10 @@
     function do_textcolors(dayColor, nightColor){
         cfg['dayTextColor'] = dayColor;
         cfg['nightTextColor'] = nightColor ? nightColor : def['nightTextColor'];
-        console.log("Set textcolors to day=" + cfg['dayTextColor'] + ", night=" + cfg['nightTextColor']);
+        console.log("Set default textcolors to day=" + cfg['dayTextColor'] + ", night=" + cfg['nightTextColor']);
     }
 
     //////// gestion des messages
-
-    // ne fonctionne pas comme voulu car il n'y a pas de pause
-    // A remplacer par des messages au format "[text/back] message"
-    // function do_message(msg, color){
-    //    if( ! isNight ){
-    //        if( color.length > 0 )
-    //            body.style.color = color;
-    //        notif_net.innerText = msg;
-    //        console.log("Display Message " + msg);
-    //    }
-    // }
 
     function do_refreshmessages(delais_m=0){
         clearInterval(id_getNotifs);

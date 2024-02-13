@@ -46,7 +46,7 @@
 </style>
 </head>
 <body>
-<div hidden class="cover" style="background-color: rgba(0,0,0,.5);z-index: -1;"></div>
+<div hidden id="pic" class="cover" style="background-color: rgba(0,0,0,.5);z-index: -1;"></div>
 <h1 id="time">00:00</h1>
 <h1 id="day">Jours</h1>
 <h1 id="date">00 Mois Année</h1>
@@ -74,9 +74,9 @@
     // valeurs par defaut des variables configurables
     var def = {
         dayTextColor      : 'white',
-        dayBgColor        : 'black',
+        dayBgColor        : 'black',      // pas utilisé
         nightTextColor    : 'blue',
-        nightBgColor      : 'black',
+        nightBgColor      : 'black',      // pas utilisé
         durationByMessage : 16,           // secondes
         refreshNotifs     : 19,           // minutes
         urlNotifs         : 'notifs.txt'
@@ -132,11 +132,12 @@
     renderDate();
     setInterval(renderDate, 1000);
 
+    pic.hidden = false;
+
     var notifs = [];
     var idx  = 0;
     var audioRunning = false;
     var localColors  = false;
-    var body = document.getElementsByTagName("body")[0];
     var call_re = /^#\s*(\w+)\((.*)\)$/;
 
     // Cette fonction detecte 4 types de ligne:
@@ -264,7 +265,7 @@
 
     //////// gestion des messages
 
-    function do_refreshmessages(delais_m=0){
+    function do_refreshmessages(delais_m=0) {
         clearInterval(id_getNotifs);
         cfg['refreshNotifs'] = delais_m ==  0 ? def['refreshNotifs']  // reset
                              : delais_m  < 15 ? 15                    // min 15 minutes
@@ -273,7 +274,7 @@
         console.log("Refresh list of messages every " + cfg['refreshNotifs'] + "min");
     }
 
-    function do_durationbymessage(delais_s=0){
+    function do_durationbymessage(delais_s=0) {
         clearInterval(id_showNextNotif);
         cfg['durationByMessage'] = delais_s ==  0 ? def['durationByMessage']  // reset
                                  : delais_s  <  2 ? 2                         // min 15 secondes  (2 pour les TESTS)
@@ -284,7 +285,7 @@
 
     //////// gestion son
 
-    function do_playsound(url){
+    function do_playsound(url) {
     //    if (isNight) return;
         // IMPORTANT: necessite l'autorisation de 'auto play'
         // pendant ce temps les notifs texte continuent normalement
@@ -300,7 +301,7 @@
 
     //////// gestion image
 
-    function do_displayimage(url){
+    function do_displayimage(url) {
         if (isNight) return;
         // TODO
         // Afficher l'image soit en plein ecran, soit a la place du calendrier
@@ -309,14 +310,18 @@
         console.log("Display image at " + url + " NOT IMPLEMENTED");
     }
 
-    function do_setbackground(url){
-        if (isNight) return;
-        // TODO: url pointe sur une image (dans google photo par example)
-        //       la mettre en fond d'ecran
+    function do_background(url) {
+        // if (isNight) return;
+        pic.style.backgroundImage  = 'url(' + url + ')'; 
+        pic.style.backgroundSize     = 'contain';
+        pic.style.backgroundRepeat   = 'no-repeat';
+        pic.style.backgroundPosition = 'center';
+        pic.hidden = false;
         console.log("Set background to " + url + "NOT IMPLEMENTED");
+        
     }
 
-    function do_slideshow(url){
+    function do_slideshow(url) {
         if( isNight ) return;
         // TODO: url pointe sur une playlist (fichier texte) d'image (dans google doc ?)
         // on met en cache cette liste pour xx heures ou jusqu'a une url differente

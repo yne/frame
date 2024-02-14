@@ -79,13 +79,15 @@
         nightBgColor      : 'black',      // pas utilisé
         durationByMessage : 16,           // secondes
         refreshNotifs     : 19,           // minutes
-        urlNotifs         : 'notifs.txt'
+        urlNotifs         : './notifs.txt'
     };
 
     // eventuelle redefinition de valeurs par defaut via l'url
-    var urlParams = new URLSearchParams(window.location.search);
-    for (var key of Object.keys(def)) {
-        var val = urlParams.get(key);
+    var urlParams = location.search.slice(1).split('&')
+        .map(function(kv){return kv.split('=')})
+        .reduce(function(acc,kv){acc[kv[0]]=kv[1];return acc},{})
+    for (var key in def) {
+        var val = urlParams[key];
         if( val ) def[key] = val;
     }
 
@@ -99,17 +101,17 @@
     // gestion des sauvegarde/restoration des couleurs
     // ceci permet de derorger aux couleurs par defaut le temps d'un message
     var colorsBackup = { saved : false };
-
+    var colors = ['dayTextColor', 'nightTextColor'];
     function saveColors() {
-        for (var color of ['dayTextColor', 'nightTextColor'])
-            colorsBackup[color] = cfg[color];
+        for (var c in colors)
+            colorsBackup[colors[c]] = cfg[colors[c]];
         colorsBackup['saved'] = true;
     }
 
     function restoreColors() {
         if (! colorsBackup['saved']) return;
-        for (var color in ['dayTextColor', 'nightTextColor'])
-            cfg[color] = colorsBackup[color];
+        for (var c in colors)
+            cfg[colors[c]] = colorsBackup[colors[c]];
         colorsBackup['saved'] = false;
     }
 
@@ -148,9 +150,9 @@
          var line = notifs[idx].trim();
 
          if (line.length == 0)
-             return '';  // une ligne vide, on l'ignore
+         return '';  // une ligne vide, on l'ignore
 
-         if (! line.startsWith('#'))
+         if (! line.match(/^#/))
              return line;  // une message a afficher
 
          var call = line.match(call_re);
@@ -249,7 +251,7 @@
     function do_reset() {
         for (var key in def)
             if (key != 'refreshNotifs') cfg[key] = def[key];
-        do_durationbymessage();
+        do_durationbymessage(0);
         // FIXME: refreshNotifs n'est pas re-initialisé et donc do_refreshmessages() n'est pas appelé
         // Pour etre propre il faudrait faire 2 groupes
         // les variables resetables, et les variables non resetables
@@ -264,7 +266,7 @@
 
     //////// gestion des messages
 
-    function do_refreshmessages(delais_m=0) {
+    function do_refreshmessages(delais_m) {
         clearInterval(id_getNotifs);
         cfg['refreshNotifs'] = delais_m ==  0 ? def['refreshNotifs']  // reset
                              : delais_m  < 15 ? 15                    // min 15 minutes
@@ -273,7 +275,7 @@
         console.log("Refresh list of messages every " + cfg['refreshNotifs'] + "min");
     }
 
-    function do_durationbymessage(delais_s=0) {
+    function do_durationbymessage(delais_s) {
         clearInterval(id_showNextNotif);
         cfg['durationByMessage'] = delais_s ==  0 ? def['durationByMessage']  // reset
                                  : delais_s  <  2 ? 2                         // min 15 secondes  (2 pour les TESTS)
@@ -290,7 +292,7 @@
         // pendant ce temps les notifs texte continuent normalement
         console.log("Playing sound at " + url);
         audio = new Audio(url);
-        audio.onended = (event) => {
+        audio.onended = function (event) {
             console.log("Audio stopped.");
             audioRunning = false;
         }

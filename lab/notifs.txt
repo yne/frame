@@ -1,0 +1,33 @@
+# BackGround('https://img.freepik.com/photos-gratuite/gros-plan-personnes-souriantes-posant-ensemble_23-2149049208.jpg')
+Hi, Bonjour !
+
+### PlaySound('https://download.samplelib.com/mp3/sample-15s.mp3')
+### PlaySound('https://soundbible.com/grab.php?id=91&type=mp3')
+
+# PlaySound('https://universal-soundbank.com/sounds/12002.mp3')
+# BackGround('https://www.journal-aviation.com/actualites/images/JAV20190716145307.jpg')
+[red/yellow] Depuis la lune ...
+
+# On accelère le rythme
+# DurationByMessage(3)
+
+
+# BackGround('https://img.freepik.com/photos-gratuite/gros-plan-personnes-souriantes-posant-ensemble_23-2149049208.jpg')
+retour sur terre
+
+# BackGround('https://bonpote.com/wp-content/uploads/2020/10/neutralite-carbone.jpg')
+# TextColors('lime', 'green')
+Du green waching
+et encore du green
+
+# TextColors('yellow', 'darkorange')
+Yellow submarine
+
+# TextColors('blue', 'navy')
+The Bluest Blues
+
+# NoBackGround()
+# TextColors('white')
+Fin
+
+

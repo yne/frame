@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html manifest="manifest.appcache">
+<meta http-equiv="refresh" content="3600"><!--8640-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<style>
+    html {
+        background-color:black;
+        background-size: cover;
+        /*background-image: url('http://nik.bot.nu/t3154653.jpg');*/
+        color:white;
+        height: 100%;
+        text-shadow: 0 0 5px black, 0 0 15px black, 0 0 25px black;
+    }
+    body{
+        height: 100%;
+        margin: 0;
+        box-shadow: inset 0 0 0 1000px rgba(0,0,0,.6);
+    }
+    h1{
+        margin: 0;
+        text-align: center;
+        font-family: sans-serif;
+    }
+    #time{
+        font-size:13em;
+        font-family: monospace;
+    }
+    #day{
+        line-height: 1em;
+        font-size:10em;
+    }
+    #date{
+        font-size:8em;
+    }
+    .notif{
+        font-size:5em;
+        border:8px dashed yellow;
+        font-family: monospace;
+        white-space: pre;
+        overflow: hidden;
+    }
+    .cover{position:fixed;top:0;left:0;right:0;bottom:0;}
+</style>
+<div hidden class="cover" style="background-color: rgba(0,0,0,.5);z-index: -1;"></div>
+<h1 id="time">00:00</h1>
+<h1 id="day">Jours</h1>
+<h1 id="date">00 Mois Année</h1>
+<h1 class="notif" id="notif_sys"></h1>
+<h1 class="notif" id="notif_net"></h1>
+<div class="cover" id="stderr" style="opacity: .2;"></div>
+<script>
+    var days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    var months = ['Janv.', 'Fev.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout'];
+    function renderDate() {
+        var d = new Date();
+        time.innerText = ('0'+d.getHours()).slice(-2) + (d.getSeconds()&1?' ':':') + ('0'+d.getMinutes()).slice(-2);
+        day.innerText = days[d.getDay()];
+        date.innerText =  d.getDate() + ' ' + months[d.getMonth()] + " " + d.getFullYear();
+        notif_sys.hidden = !notif_sys.innerText;
+        notif_net.hidden = !notif_net.innerText;
+    }
+    renderDate();
+    setInterval(renderDate, 1000);
+
+    var retry = 0;
+    function getnotif() {
+        if (retry > 10) {
+            notif_sys.innerText="Internet en panne: Appeler Jean"
+        }
+        if ((new Date()).getDay() === 0) {
+            notif_sys.innerText="Sortir poubelles";
+        }
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4) {
+                retry = this.status == 200 ? 0 : retry + 1;
+                if(this.status == 200) notif_net.innerText = this.responseText;
+            }
+        }
+        xhttp.open("GET", "notifs.txt", true);
+        xhttp.send();
+    }
+    getnotif();
+    setInterval(getnotif, 60*60*1000);
+</script>

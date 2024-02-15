@@ -8,9 +8,9 @@
     html {
         background-color:black;
         background-size: cover;
-        /* background-image: url('http://nik.bot.nu/t3154653.jpg'); */
         color:white;
         height: 100%;
+        margin: 0;
         text-shadow: 0 0 5px black, 0 0 15px black, 0 0 25px black;
     }
     body{
@@ -18,11 +18,18 @@
         margin: 0;
         box-shadow: inset 0 0 0 1000px rgba(0,0,0,.6);
     }
+    #calendar{
+        height: 70%;
+        margin: 0;
+        overflow: hidden;
+        background-color: black;
+    }
     h1{
         margin: 0;
         text-align: center;
         font-family: sans-serif;
     }
+
     #time{
         font-size:13em;
         font-family: monospace;
@@ -35,24 +42,26 @@
         font-size:8em;
     }
     .notif{
+        height: 15%;
+        margin: 0;
+        overflow: hidden;
         font-size:5em;
-        border:8px dashed yellow;
+        /* border:8px dashed yellow; */
         font-family: monospace;
         white-space: pre;
-        overflow: hidden;
     }
     .cover{position:fixed;top:0;left:0;right:0;bottom:0;}
-
 </style>
 </head>
 <body>
-<div hidden id="pic" class="cover" style="background-color: rgba(0,0,0,.5);z-index: -1;"></div>
+<div id="calendar">
 <h1 id="time">00:00</h1>
 <h1 id="day">Jours</h1>
 <h1 id="date">00 Mois Année</h1>
+</div>
 <h1 class="notif" id="notif_sys"></h1>
 <h1 class="notif" id="notif_net"></h1>
-<div class="cover" id="stderr" style="opacity: .2;"></div>
+<div class="cover" id="stderr" style="font-family:monospace; white-space:pre; opacity:.3;"></div>
 <script>
 
     // Returns the ISO week of the current date.
@@ -73,6 +82,7 @@
 
     // valeurs par defaut des variables configurables
     var def = {
+        trace             : 0,
         dayTextColor      : 'white',
         dayBgColor        : 'black',      // pas utilisé
         nightTextColor    : 'blue',
@@ -81,6 +91,7 @@
         refreshNotifs     : 19,           // minutes
         urlNotifs         : './notifs.txt'
     };
+
 
     // eventuelle redefinition de valeurs par defaut via l'url
     var urlParams = location.search.slice(1).split('&')
@@ -96,10 +107,17 @@
     var cfg = {};
     for (var key in def)
       cfg[key] = def[key];
-    console.log("Configuration: " + cfg);
 
-    // gestion des sauvegarde/restoration des couleurs
+    function trace(msg){
+        console.log(msg);
+        if (cfg['trace'] > 0)
+            stderr.innerText += msg + "\n";
+    }
+    trace(navigator.userAgent);
+
+    //////// gestion des sauvegarde/restoration des couleurs ////////
     // ceci permet de derorger aux couleurs par defaut le temps d'un message
+
     var colorsBackup = { saved : false };
     var colors = ['dayTextColor', 'nightTextColor'];
     function saveColors() {
@@ -115,7 +133,15 @@
         colorsBackup['saved'] = false;
     }
 
-    ////////////////////////////////////////
+    //////// L'unique object Audio ////////
+
+    var audio = new Audio;
+
+    function audioIsPlaying() {
+        return audio.src.length>0 && audio.ended==false;
+    }
+
+    //////// Gestion de l'affichage du calendrier ////////
 
     var isNight = false;
     var days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -133,11 +159,10 @@
     renderDate();
     setInterval(renderDate, 1000);
 
-    pic.hidden = false;
+    //////// Gestion de l'affichage des messages ////////
 
     var notifs = [];
     var idx  = 0;
-    var audioRunning = false;
     var localColors  = false;
     var call_re = /^#\s*(\w+)\((.*)\)\s*;?\s*$/;
 
@@ -184,7 +209,6 @@
     function showNextNotif() {
         var cnt = notifs.length;
         if (cnt==0) return;
-        if (audioRunning) return;  // TODO: ajouter un . au message actuelle a chaque fois
         restoreColors();
         console.log("------------- @" + (idx+1));
         var init = idx;
@@ -205,6 +229,8 @@
         notif_net.style.color = isNight ? cfg['nightTextColor'] : cfg['dayTextColor'];
     }
     var id_showNextNotif = setInterval(showNextNotif, cfg['durationByMessage']*1000);
+
+    //////// Gestion du fichier contenant les messages ////////
 
     var retry = 0;
     function getNotifs() {
@@ -246,7 +272,7 @@
     getNotifs();
     setTimeout( function () {showNextNotif()}, 3*1000);
 
-    //////// gestion look & feel
+    //////// fonctions de gestion look & feel ////////
 
     function do_reset() {
         for (var key in def)
@@ -264,7 +290,7 @@
         console.log("Set default textcolors to day=" + cfg['dayTextColor'] + ", night=" + cfg['nightTextColor']);
     }
 
-    //////// gestion des messages
+    //////// fonctions de gestion des messages ////////
 
     function do_refreshmessages(delais_m) {
         clearInterval(id_getNotifs);
@@ -284,40 +310,49 @@
         console.log("Duration By Message: " + cfg['durationByMessage'] + "s");
     }
 
-    //////// gestion son
+    //////// fonctions de gestion du son ////////
 
     function do_playsound(url) {
-    //    if (isNight) return;
+        if (isNight) return;
         // IMPORTANT: necessite l'autorisation de 'auto play'
         // pendant ce temps les notifs texte continuent normalement
-        console.log("Playing sound at " + url);
-        audio = new Audio(url);
-        audio.onended = function (event) {
-            console.log("Audio stopped.");
-            audioRunning = false;
-        }
+        // Pour eviter la superposition de messages audio on refuse
+        // de lancer un nouveau message si le precedant n'est pas terminé.
+        //Ref: https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement
+        //     https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement
+
+        if ( audioIsPlaying() ) return;
+        audio.src = url;
+        // evenemnt non supporte par Archos
+        // remplace par notre fonction audioIsPlaying()
+        // audio.onended = function (event) {
+        //    console.log("Audio stopped.");
+        // }
+        audio.autoplay = true;    // obligatoire sur Archos
         audio.play();
-        audioRunning = true;
+        console.log("Playing sound at " + url);
     }
 
-    //////// gestion image
+    //////// gestion image ////////
 
+    //FIXME ne marche pas sur Archos
     function do_background(url) {
-        // if (isNight) return;
-        pic.style.backgroundImage  = 'url(' + url + ')';
-        pic.style.backgroundSize     = 'contain';
-        pic.style.backgroundRepeat   = 'no-repeat';
-        pic.style.backgroundPosition = 'center';
-        pic.hidden = false;
-        console.log("Set background to " + url);
+        if (isNight) return;
+        calendar.style.backgroundImage    = 'url(' + url + ')';
+        calendar.style.backgroundSize     = 'contain';
+        calendar.style.backgroundRepeat   = 'no-repeat';
+        calendar.style.backgroundPosition = 'center';
+        // calendar.hidden = false;
+        trace("Set background to " + url);
     }
 
     function do_nobackground(){
-        pic.hidden = false;
-        pic.style.backgroundImage  = '';
-        console.log("No background");
+        // calendar.hidden = true;
+        calendar.style.backgroundImage  = '';
+        trace("No background");
     }
 
+/*
     function do_displayimage(url) {
         if (isNight) return;
         // TODO
@@ -334,6 +369,7 @@
         // a chaque execution on prend l'une des photos (suivante ou au hazard)
         console.log("Display next image from " + url + "NOT IMPLEMENTED");
     }
+*/
 
 </script>
 </body>

@@ -1,1 +1,6 @@
-Hi, Bonjour !
+# [day-textcolor/night-textcolor] message
+[red/blue] Bonjour Monique !
+[yellow/blue] Je suis un calendrier et mémo
+[green/blue] qui affiche des messages ...
+[blue/blue] envoyés par Jean ou Remy.
+Fin

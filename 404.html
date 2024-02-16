@@ -1,60 +1,160 @@
 <!DOCTYPE html>
 <html manifest="manifest.appcache">
-<meta http-equiv="refresh" content="3600"><!--8640-->
+<head>
+<meta http-equiv="refresh" content="3600"> <!--en seconde; 3600=1H-->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <style>
     html {
         background-color:black;
         background-size: cover;
-        /*background-image: url('http://nik.bot.nu/t3154653.jpg');*/
         color:white;
         height: 100%;
+        margin: 0;
         text-shadow: 0 0 5px black, 0 0 15px black, 0 0 25px black;
     }
-    body{
+    body {
         height: 100%;
         margin: 0;
         box-shadow: inset 0 0 0 1000px rgba(0,0,0,.6);
     }
-    h1{
+    h1 {
         margin: 0;
         text-align: center;
         font-family: sans-serif;
     }
-    #time{
-        font-size:13em;
-        font-family: monospace;
+    hr {
+        margin: 0;
     }
-    #day{
-        line-height: 1em;
-        font-size:10em;
-    }
-    #date{
-        font-size:8em;
-    }
-    .notif{
-        font-size:5em;
-        border:8px dashed yellow;
-        font-family: monospace;
-        white-space: pre;
+    #calendar {
+        height: 69%;
+        margin: 0;
         overflow: hidden;
     }
-    .cover{position:fixed;top:0;left:0;right:0;bottom:0;}
+    #time {
+        font-size: 13em;
+        font-family: monospace;
+    }
+    #day {
+        line-height: 1em;
+        font-size: 10em;
+    }
+    #date {
+        font-size: 8em;
+    }
+    .notif {
+        height: 15%;
+        margin: 0;
+        overflow: hidden;
+        font-size: 5em;
+        font-family: monospace;
+        white-space: pre;
+    }
+    #notif_sys {
+        color: red;
+    }
+    .cover {position:fixed; top:0; left:0; right:0; bottom:0;}
 </style>
-<div hidden class="cover" style="background-color: rgba(0,0,0,.5);z-index: -1;"></div>
+</head>
+<body>
+<h1 class="notif" id="notif_sys"><small><sub><i>pas de rappel</i></sub></small></h1>
+<hr/>
+<div id="calendar">
 <h1 id="time">00:00</h1>
 <h1 id="day">Jours</h1>
 <h1 id="date">00 Mois Année</h1>
-<h1 class="notif" id="notif_sys"></h1>
-<h1 class="notif" id="notif_net"></h1>
-<div class="cover" id="stderr" style="opacity: .2;"></div>
+</div>
+<hr/>
+<h1 class="notif" id="notif_net"><small><sub><i>pas de message</i></sub></small></h1>
+<div class="cover" id="stderr" style="font-family:monospace; white-space:pre; opacity:.3;">V 1.0</div>
 <script>
+    var version =  "V 1.0";
+
+    // Returns the ISO week of the current date.
+    // https://weeknumber.com/how-to/javascript
+    Date.prototype.getWeek = function() {
+        var date = new Date(this.getTime());
+        date.setHours(0, 0, 0, 0);
+
+        // Thursday/Jeudi in current week decides the year.
+        date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+
+        // January 4th is always in week #1.
+        var week1 = new Date(date.getFullYear(), 0, 4);
+
+        // Adjust to Thursday in week 1 and count number of weeks from date to week1.
+        return 1 + Math.round( (((date.getTime() - week1.getTime()) / 86400000) - 3 + (week1.getDay() + 6) % 7) / 7);
+    }
+
+    // valeurs par defaut des variables configurables
+    var def = {
+        trace             : 0,
+        dayTextColor      : 'white',
+        dayBgColor        : 'black',      // pas utilisé
+        nightTextColor    : 'blue',
+        nightBgColor      : 'black',      // pas utilisé
+        durationByMessage : 16,           // secondes
+        refreshNotifs     : 19,           // minutes
+        urlNotifs         : './notifs.txt'
+    };
+
+    // eventuelle redefinition de valeurs par defaut via l'url
+    var urlParams = location.search.slice(1).split('&')
+        .map(function(kv){return kv.split('=')})
+        .reduce(function(acc,kv){acc[kv[0]]=kv[1];return acc},{})
+    for (var key in def) {
+        var val = urlParams[key];
+        if( val ) def[key] = val;
+    }
+
+    // creation & initialisation de toutes les variables de configuration
+    // Note: pour ajouter un variable sujette a configuration l'ajouter dans def[]
+    var cfg = {};
+    for (var key in def)
+      cfg[key] = def[key];
+
+    function trace(msg){
+        console.log(msg);
+        if (cfg['trace'] > 0)
+            stderr.innerText += msg + "\n";
+    }
+
+    //////// gestion des sauvegarde/restoration des couleurs ////////
+    // ceci permet de derorger aux couleurs par defaut le temps d'un message
+
+    var colorsBackup = { saved : false };
+    var colors = ['dayTextColor', 'nightTextColor'];
+    function saveColors() {
+        for (var c in colors)
+            colorsBackup[colors[c]] = cfg[colors[c]];
+        colorsBackup['saved'] = true;
+    }
+
+    function restoreColors() {
+        if (! colorsBackup['saved']) return;
+        for (var c in colors)
+            cfg[colors[c]] = colorsBackup[colors[c]];
+        colorsBackup['saved'] = false;
+    }
+
+    //////// L'unique object Audio ////////
+
+    var audio = new Audio;
+
+    function audioIsPlaying() {
+        return audio.src.length>0 && audio.ended==false;
+    }
+
+    //////// Gestion de l'affichage du calendrier ////////
+
+    var isNight = false;
     var days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    var months = ['Janv.', 'Fev.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout'];
+    var months = ['Janv.', 'Fev.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Aout', 'Sept.', 'Oct.', 'Nov.', 'Dec.'];
     function renderDate() {
         var d = new Date();
-        time.innerText = ('0'+d.getHours()).slice(-2) + (d.getSeconds()&1?' ':':') + ('0'+d.getMinutes()).slice(-2);
+        var h = d.getHours();
+        isNight = (8>h) || (h>=20);
+        time.innerHTML = ('0'+h).slice(-2) + (d.getSeconds()&1?'&nbsp;':':') + ('0'+d.getMinutes()).slice(-2);
         day.innerText = days[d.getDay()];
         date.innerText =  d.getDate() + ' ' + months[d.getMonth()] + " " + d.getFullYear();
         notif_sys.hidden = !notif_sys.innerText;
@@ -63,24 +163,205 @@
     renderDate();
     setInterval(renderDate, 1000);
 
+    //////// Gestion de l'affichage des messages ////////
+
+    var notifs = [];
+    var idx  = 0;
+    var localColors  = false;
+    var call_re = /^#\s*(\w+)\((.*)\)\s*;?\s*$/;
+
+    // Cette fonction detecte 4 types de ligne:
+    //  ""                 -> ligne vide: ignorer
+    //  "# commentaire"    -> ligne de commentaire: ignorer
+    //  "# func(param)"    -> appel d'une fonction: executer
+    //  "texte a afficher" -> message a afficher: retourner le texte
+    function getNextNotif() {
+         var line = notifs[idx].trim();
+
+         if (line.length == 0)
+         return '';  // une ligne vide, on l'ignore
+
+         if (! line.match(/^#/))
+             return line;  // une message a afficher
+
+         var call = line.match(call_re);
+         if ( (call === null) || (call.length != 3) )
+             return '';  // un commentaire, on l'ignore
+
+         // un appel de fonction, on l'execute
+         var do_call = "do_" + call[1].toLowerCase() + "(" + call[2] + ")";
+         try {
+             eval(do_call)
+         } catch (err) {
+             console.log("Failed to execute: " + do_call + "\n" + err)
+         }
+         return '';
+    }
+
+    // detecte et applique le format "[day-color/night-color] message"
+    var msg_re = /^\[\s*([\w#]+)\s*\/\s*([\w#]+)\s*\]\s*(.*)$/
+    function parseMessage(msg) {
+        var results = msg.match(msg_re);
+        if ( (results === null) || (results.length != 4) ) return msg;
+        //TODO sauver les couleurs actuelles
+        saveColors();
+        cfg['dayTextColor']   = results[1];
+        cfg['nightTextColor'] = results[2];
+        return results[3];
+    }
+
+    function showNextNotif() {
+
+        //// Notifications internes (calendrier)
+        notif_sys.innerText = "";
+        var now = new Date();
+        var   h = now.getHours();
+        if ((h==11) || (h==12) || (h==13) || (h==18) || (h==19) || (h==20)) {
+            notif_sys.innerText = "Boire, Manger 3 fois/jour";
+        }
+        if (now.getDay() === 0) { // tous les dimanches
+            notif_sys.innerText = "Sortir poubelle VERTE";
+        }else if ((now.getDay() === 3) && ((now.getWeek() % 2) === 1)) { // mercredi des semaines impaires
+            notif_sys.innerText = "Sortir poubelle JAUNE";
+        }else if ((now.getDay() === 4) && (now.getHours() < 15)) { // tous les jeudi matin
+            notif_sys.innerText = "Samia à 14h";
+        }
+        if (notif_sys.innerText.length == 0) {
+            var fun = "|'^*°-~._";
+            notif_sys.innerText = fun.charAt( Math.random()*fun.length );
+        }
+
+        //// Notifications externes
+        var cnt = notifs.length;
+        if (cnt==0) return;
+        restoreColors();
+        console.log("------------- @" + (idx+1));
+        var init = idx;
+        do {
+            if (idx==0) do_reset();
+            var msg = getNextNotif();
+            idx = (idx + 1) % cnt;
+            if( msg.length > 0 ){
+                notif_net.innerText = parseMessage(msg);
+                console.log("Message '" + msg + "'");
+                break;
+            }else if( idx == init ){
+                notif_net.innerText = '...';
+                console.log("Message de temporisation");
+                break;
+            }
+        } while (true);
+        notif_net.style.color = isNight ? cfg['nightTextColor'] : cfg['dayTextColor'];
+
+    }
+    var id_showNextNotif = setInterval(showNextNotif, cfg['durationByMessage']*1000);
+
+    //////// Gestion du fichier contenant les messages ////////
+
     var retry = 0;
-    function getnotif() {
+    function getNotifs() {
         if (retry > 10) {
-            notif_sys.innerText="Internet en panne: Appeler Jean"
+            notif_net.innerText="Internet en panne: Appeler Jean"
         }
-        if ((new Date()).getDay() === 0) {
-            notif_sys.innerText="Sortir poubelles";
-        }
+
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
             if (this.readyState == 4) {
-                retry = this.status == 200 ? 0 : retry + 1;
-                if(this.status == 200) notif_net.innerText = this.responseText;
+                if(this.status == 200){
+                    idx = 0;
+                    notifs = (this.responseText).split("\n");
+                    // tracking
+                    var newImage = new Image();
+                    newImage.src = "https://sstatic1.histats.com/0.gif?4844069&" + Math.random(); // cache breaker
+                }else{
+                    retry++;
+                }
             }
         }
-        xhttp.open("GET", "notifs.txt", true);
+        xhttp.open("GET", cfg['urlNotifs'] + "?" + Math.random(), true);
         xhttp.send();
     }
-    getnotif();
-    setInterval(getnotif, 60*60*1000);
+    var id_getNotifs = setInterval(getNotifs, cfg['refreshNotifs']*60*1000);
+
+    // first run
+    getNotifs();
+    setTimeout( function () {showNextNotif()}, 3*1000);
+
+    //////// Fonctions de gestion look & feel ////////
+
+    function do_reset() {
+        for (var key in def)
+            if (key != 'refreshNotifs') cfg[key] = def[key];
+        do_durationbymessage(0);
+        // FIXME: refreshNotifs n'est pas re-initialisé et donc do_refreshmessages() n'est pas appelé
+        // Pour etre propre il faudrait faire 2 groupes
+        // les variables resetables, et les variables non resetables
+        console.log("Reset to default (excepted refreshNotifs)");
+    }
+
+    function do_textcolors(dayColor, nightColor){
+        cfg['dayTextColor'] = dayColor;
+        cfg['nightTextColor'] = nightColor ? nightColor : def['nightTextColor'];
+        console.log("Set default textcolors to day=" + cfg['dayTextColor'] + ", night=" + cfg['nightTextColor']);
+    }
+
+    //////// Fonctions de gestion des messages ////////
+
+    function do_refreshmessages(delais_m) {
+        clearInterval(id_getNotifs);
+        cfg['refreshNotifs'] = delais_m ==  0 ? def['refreshNotifs']  // reset
+                             : delais_m  < 15 ? 15                    // min 15 minutes
+                                              : delais_m;
+        id_getNotifs = setInterval(getNotifs, cfg['refreshNotifs']*60*1000);
+        console.log("Refresh list of messages every " + cfg['refreshNotifs'] + "min");
+    }
+
+    function do_durationbymessage(delais_s) {
+        clearInterval(id_showNextNotif);
+        cfg['durationByMessage'] = delais_s ==  0 ? def['durationByMessage']  // reset
+                                 : delais_s  <  2 ? 2                         // min 15 secondes  (2 pour les TESTS)
+                                                  : delais_s;
+        id_showNextNotif = setInterval(showNextNotif, cfg['durationByMessage']*1000);
+        console.log("Duration By Message: " + cfg['durationByMessage'] + "s");
+    }
+
+    //////// Fonctions de gestion du son ////////
+
+    function do_playsound(url) {
+        if (isNight) return;
+        // IMPORTANT: necessite l'autorisation de 'auto play'
+        // pendant ce temps les notifs texte continuent normalement
+        // Pour eviter la superposition de messages audio on refuse
+        // de lancer un nouveau message si le precedant n'est pas terminé.
+        //Ref: https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement
+        //     https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement
+
+        if ( audioIsPlaying() ) return;
+        audio.src = url;
+        // evenemnt non supporte par Archos
+        // remplace par notre fonction audioIsPlaying()
+        // audio.onended = function (event) {
+        //    console.log("Audio stopped.");
+        // }
+        audio.autoplay = true;    // obligatoire sur Archos
+        audio.play();
+        console.log("Playing sound at " + url);
+    }
+
+    //////// Fonctions de gestion des images ////////
+
+    function do_background(url) {
+        if (isNight) return;
+        calendar.style.backgroundImage    = 'url(' + url + ')';
+        calendar.style.backgroundSize     = 'contain';
+        calendar.style.backgroundRepeat   = 'no-repeat';
+        calendar.style.backgroundPosition = 'center';
+    }
+
+    function do_nobackground(){
+        calendar.style.backgroundImage  = '';
+    }
+
 </script>
+</body>
+</html>

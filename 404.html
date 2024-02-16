@@ -4,6 +4,7 @@
 <meta http-equiv="refresh" content="3600"> <!--en seconde; 3600=1H-->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<link rel="icon" href="//frame/favicon.ico" />
 <style>
     html {
         background-color:black;
@@ -68,7 +69,7 @@
 <h1 class="notif" id="notif_net"><small><sub><i>pas de message</i></sub></small></h1>
 <div class="cover" id="stderr" style="font-family:monospace; white-space:pre; opacity:.3;">V 1.0</div>
 <script>
-    var version =  "V 1.0";
+    var version =  "V 1.1";
 
     // Returns the ISO week of the current date.
     // https://weeknumber.com/how-to/javascript
@@ -272,7 +273,7 @@
                     notifs = (this.responseText).split("\n");
                     // tracking
                     var newImage = new Image();
-                    newImage.src = "http://sstatic1.histats.com/0.gif?4844069&" + Math.random(); // cache breaker
+                    newImage.src = "//sstatic1.histats.com/0.gif?4844069&" + Math.random(); // cache breaker
                 }else{
                     retry++;
                 }

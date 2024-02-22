@@ -67,9 +67,8 @@
 </div>
 <hr/>
 <h1 class="notif" id="notif_net"><small><sub><i>pas de message</i></sub></small></h1>
-<div class="cover" id="stderr" style="font-family:monospace; white-space:pre; opacity:.3;">V 1.0</div>
+<div class="cover" id="stderr" style="font-family:monospace; white-space:pre; opacity:.3;">V 1.2</div>
 <script>
-    var version =  "V 1.1";
 
     // Returns the ISO week of the current date.
     // https://weeknumber.com/how-to/javascript
@@ -225,7 +224,17 @@
         }else if ((now.getDay() === 3) && ((now.getWeek() % 2) === 1)) { // mercredi des semaines impaires
             notif_sys.innerText = "Sortir poubelle JAUNE";
         }else if ((now.getDay() === 4) && (now.getHours() < 15)) { // tous les jeudi matin
-            notif_sys.innerText = "Samia à 14h";
+            if( (now.getMonth()=="3") && ((now.getDate()==11) || (now.getDate()==18))){
+                notif_sys.innerText = "Samia en congés";
+            }else{
+                var jeudiProchain = new Date(now);
+                jeudiProchain.setDate(jeudiProchain.getDate() + 7);
+                if( now.getMonth() != jeudProchain.getMonth() ){
+                    notif_sys.innerText = "Samia à 13h30 - LA PAYER";
+                }else{
+                    notif_sys.innerText = "Samia à 13h30";
+                }
+            }
         }
         if (notif_sys.innerText.length == 0) {
             var fun = "|'^*°-~._";

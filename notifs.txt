@@ -1,4 +1,4 @@
 # [day-textcolor/night-textcolor] message
-[red/blue] Bonjour Monique !
-[yellow/blue] Véro s'occupe des repas
-à bientot!
+[yellow/blue] Bonjour Monique !    ...
+[yellow/blue] Mardi matin 08h : PEDICURE
+bise - Jean

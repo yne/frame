@@ -1,4 +1,5 @@
 # [day-textcolor/night-textcolor] message
-[yellow/blue] Bonjour Monique !    ...
-[yellow/blue] Mardi matin 08h : PEDICURE
-bise - Jean
+[green/blue] Bonjour Monique !
+[yellow/blue] Petit dejeuner entre 9h et 9h30
+[yellow/blue] Repas de midi entre 12h et 13h
+[yellow/blue] Repas du soir entre 19h et 20h

@@ -67,7 +67,7 @@
 </div>
 <hr/>
 <h1 class="notif" id="notif_net"><small><sub><i>pas de message</i></sub></small></h1>
-<div class="cover" id="stderr" style="font-family:monospace; white-space:pre; opacity:.3;">V 1.2</div>
+<div class="cover" id="stderr" style="font-family:monospace; white-space:pre; opacity:.3;">V 1.3</div>
 <script>
 
     // Returns the ISO week of the current date.
@@ -120,7 +120,7 @@
     }
 
     //////// gestion des sauvegarde/restoration des couleurs ////////
-    // ceci permet de derorger aux couleurs par defaut le temps d'un message
+    // ceci permet de deroger aux couleurs par defaut le temps d'un message
 
     var colorsBackup = { saved : false };
     var colors = ['dayTextColor', 'nightTextColor'];
@@ -154,6 +154,15 @@
         var d = new Date();
         var h = d.getHours();
         isNight = (8>h) || (h>=20);
+        if( isNight ){
+           time.style.color = "rgb(32,32,32)";
+           day.style.color  = "rgb(32,32,32)";
+           date.style.color = "rgb(32,32,32)";
+        }else{
+           time.style.color = 'white';
+           day.style.color  = 'white';
+           date.style.color = 'white';
+        }
         time.innerHTML = ('0'+h).slice(-2) + (d.getSeconds()&1?'&nbsp;':':') + ('0'+d.getMinutes()).slice(-2);
         day.innerText = days[d.getDay()];
         date.innerText =  d.getDate() + ' ' + months[d.getMonth()] + " " + d.getFullYear();
